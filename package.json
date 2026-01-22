@@ -8,11 +8,13 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "build": "echo 'NOTE: For Railway deployment, please configure two separate services with Root Directory set to /client and /server respectively.' && npm run build --workspaces",
-    "start": "echo 'NOTE: Please start client and server separately.'"
+    "build": "npm run build --workspaces",
+    "start": "concurrently --kill-others \"cd server && PORT=5000 npm start\" \"cd client && npm start\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=20.9.0"
