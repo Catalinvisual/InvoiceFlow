@@ -139,7 +139,7 @@ function RegisterForm() {
     try {
       setError("");
       setInfo("");
-      await axios.post("http://localhost:5000/api/auth/resend-verification", { email: pendingEmail });
+      await axios.post("/api/auth/resend-verification", { email: pendingEmail });
       setInfo("A new verification code was sent to your email.");
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
