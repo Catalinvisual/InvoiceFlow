@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  VENDOR
+  CUSTOMER
+}
+
+model User {
+  id               String    @id @default(uuid())
+  companyName      String    @unique
+  email            String    @unique
+  password         String
+  role             String   @default("VENDOR") // VENDOR, ADMIN, CUSTOMER
+  plan             String   @default("FREE") // FREE, STARTER, PRO
+  subscriptionStatus String @default("ACTIVE")
+  emailVerified    Boolean  @default(false)
+  emailVerifiedAt  DateTime?
+  subscriptionPlan String   @default("free")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Payment settings (MVP)
+  paymentMethod       String?
+  paymentLinkBase     String?
+  paymentInstructions String?
+
+  clients            Client[]
+  settings           Settings?
+  emailVerifications EmailVerification[]
+  invoices           Invoice[]
+  customTemplates    CustomTemplate[]
+  
+  // Link to Client entity if this User is a CUSTOMER
+  clientProfile      Client?   @relation("PortalUser")
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String   // Changed from codeHash for simplicity in this MVP flow, or kept as code
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  attempts  Int      @default(0)
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  userId    String   // The Vendor who owns this client
+  name      String
+  contactPerson String? // Added for Contact Person Name (if different from Entity Name)
+  cui       String?
+  regCom    String?
+  address   String?
+  city      String?
+  county    String?
+  country   String?
+  zipCode   String?
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Link to the User account for Portal Access (if enabled)
+  portalUserId String? @unique
+  portalUser   User?   @relation("PortalUser", fields: [portalUserId], references: [id])
+
+  user     User      @relation(fields: [userId], references: [id])
+  invoices Invoice[]
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  userId        String        // The Vendor who issued this invoice
+  clientId      String
+  invoiceNumber String
+  items         String        // JSON string
+  vatRate       Decimal?      @db.Decimal(5, 2) // Percentage, e.g. 19
+  vatAmount     Decimal?      @db.Decimal(12, 2)
+  subtotal      Decimal?      @db.Decimal(12, 2)
+  total         Decimal       @db.Decimal(12, 2)
+  issueDate     DateTime
+  dueDate       DateTime
+  paymentTerms  String?   // Net 7, Net 14, Net 30
+  notes         String?   // Notes or Terms & Conditions
+  status        String        @default("pending") // pending, paid, overdue
+  
+  // Payment Details
+  paymentLink   String?
+  paidAt        DateTime?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user      User              @relation(fields: [userId], references: [id])
+  client    Client            @relation(fields: [clientId], references: [id])
+  reminders InvoiceReminder[]
+
+  @@unique([userId, invoiceNumber])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model InvoiceReminder {
+  id        String   @id @default(uuid())
+  invoiceId String
+  type      String   // email, sms
+  status    String   // sent, failed
+  sentAt    DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  id          String @id @default(uuid())
+  userId      String @unique
+  companyName String?
+  cui         String?
+  regCom      String?
+  address     String?
+  city        String?
+  country     String?
+  zipCode     String?
+  iban        String?
+  bank        String?
+  swift       String?
+  email       String?
+  phone       String?
+  website     String?
+  logoUrl     String?
+  brandColor  String?
+  currency    String @default("EUR")
+  invoiceTemplate String @default("simple") // simple, modern, professional, etc.
+  
+  // Reminder Settings
+  reminderDaysAfter1 Int?
+  reminderDaysAfter2 Int?
+  reminderDaysAfter3 Int?
+  reminderDaysBefore Int?
+  reminderOnDueDate  Boolean @default(false)
+
+  // Custom Template Configuration
+  templateConfig Json?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CustomTemplate {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+}
